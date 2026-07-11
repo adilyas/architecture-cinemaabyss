@@ -1,0 +1,91 @@
+@startuml
+' ============================================================
+'  CinemaAbyss — To-Be (целевая) архитектура, диаграмма контейнеров (C4 L2)
+'  Sprint 2, Задание 1.
+'  Домены: Catalog / Identity / Subscription / Billing / Engagement / Playback.
+'  Kafka — внутренняя шина доменных событий.
+'  RabbitMQ — канал интеграции с внешней рекомендалкой.
+'  Монолит выведен из эксплуатации (целевое состояние).
+'  Рендер:  plantuml docs/to-be-c4-container.puml
+' ============================================================
+!include <C4/C4_Container>
+
+title To-Be (целевая) архитектура «Кинобездна» — диаграмма контейнеров (C4)
+
+LAYOUT_WITH_LEGEND()
+
+Person(user, "Пользователь", "web / mobile / Smart TV")
+
+System_Boundary(cinemaabyss, "CinemaAbyss") {
+
+    Container(gateway, "API Gateway (Proxy)", "Go", "Единая точка входа. Маршрутизирует запросы по доменам к сервисам")
+
+    Container(movies, "Movies Service", "Go", "Каталог: метаданные, жанры, агрегатный рейтинг")
+    ContainerDb(movies_db, "Movies DB", "PostgreSQL", "movies, movie_genres")
+
+    Container(users, "Users Service", "Go", "Профиль и аутентификация")
+    ContainerDb(users_db, "Users DB", "PostgreSQL", "users")
+
+    Container(subscription, "Subscription Service", "Go", "Подписки: источник истины по доступу. Инициирует списание, активирует подписку по факту оплаты")
+    ContainerDb(sub_db, "Subscription DB", "PostgreSQL", "subscriptions")
+
+    Container(billing, "Billing Service", "Go", "Проводит списания через платёжного провайдера")
+    ContainerDb(billing_db, "Billing DB", "PostgreSQL", "payments")
+
+    Container(engagement, "Engagement Service", "Go", "Оценки, избранное, история просмотров")
+    ContainerDb(engagement_db, "Engagement DB", "PostgreSQL", "views, user_ratings")
+
+    Container(playback, "Playback Service", "Go", "Отдаёт контент. Перед воспроизведением проверяет активную подписку")
+
+    ContainerQueue(kafka, "Kafka", "Apache Kafka", "Внутренняя шина доменных событий")
+
+    Container(rec_consumer, "Recommendation Consumer", "Go", "Мост: читает события из Kafka, шлёт сигналы в рекомендалку и получает подборки")
+
+    ContainerDb(s3, "S3", "Object Storage", "Контент и медиа (видео, постеры)")
+}
+
+System_Ext(payment_provider, "Платёжный провайдер", "Внешние платёжные системы")
+System_Ext(online_cinemas, "Онлайн-кинотеатры", "Внешние источники контента")
+
+System_Boundary(recsys_b, "Внешняя рекомендательная система") {
+    ContainerQueue_Ext(rabbitmq, "RabbitMQ", "AMQP", "Канал интеграции с рекомендалкой")
+    Container_Ext(rec_engine, "Recommendation Engine", "", "Строит подборки")
+}
+
+Rel(user, gateway, "Запросы API", "HTTPS / REST / JSON")
+
+' ---------- Маршрутизация по доменам ----------
+Rel_D(gateway, playback, "просмотр контента", "HTTP/REST")
+Rel_D(gateway, movies, "/api/movies", "HTTP/REST")
+Rel_D(gateway, users, "/api/users", "HTTP/REST")
+Rel_D(gateway, subscription, "/api/subscriptions", "HTTP/REST")
+Rel_D(gateway, billing, "/api/payments", "HTTP/REST")
+Rel_D(gateway, engagement, "оценки / избранное", "HTTP/REST")
+
+' ---------- Владение данными (database-per-service): БД под сервисом ----------
+Rel_D(movies, movies_db, "Читает/пишет", "SQL")
+Rel_D(users, users_db, "Читает/пишет", "SQL")
+Rel_D(subscription, sub_db, "Читает/пишет", "SQL")
+Rel_D(billing, billing_db, "Читает/пишет", "SQL")
+Rel_D(engagement, engagement_db, "Читает/пишет", "SQL")
+
+' ---------- Playback: проверка подписки + контент ----------
+Rel(playback, subscription, "Проверка активной подписки", "HTTP/REST")
+Rel_D(playback, s3, "Контент / медиа", "S3 API")
+
+' ---------- Асинхронная интеграция через Kafka (все стрелки В шину) ----------
+Rel(subscription, kafka, "publish payment.requested / consume payment.success", "Kafka")
+Rel(billing, kafka, "consume payment.requested / publish payment.success, payment.failed", "Kafka")
+Rel(playback, kafka, "publish movie.viewed", "Kafka")
+Rel(engagement, kafka, "consume movie.viewed / publish rating.created", "Kafka")
+Rel(movies, kafka, "consume rating.created → пересчёт рейтинга", "Kafka")
+Rel(rec_consumer, kafka, "consume movie.viewed, rating.created", "Kafka")
+
+' ---------- Внешние интеграции ----------
+Rel_R(billing, payment_provider, "Проведение платежей", "HTTPS")
+Rel_R(movies, online_cinemas, "Источник метаданных", "HTTPS")
+Rel_R(playback, online_cinemas, "Источник контента", "HTTPS")
+BiRel(rec_consumer, rabbitmq, "сигналы ↔ подборки", "AMQP")
+BiRel_D(rabbitmq, rec_engine, "", "AMQP")
+
+@enduml
