@@ -55,6 +55,14 @@
 Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman 
 Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090 
 
+**Скриншот postman-тестов** (все зелёные — 22 запроса, 42 assertions, 0 failed, включая сервис events):
+
+![Postman tests — all green](docs/task2-postman-tests.png)
+
+**Скриншот состояния топиков Kafka** (UI http://localhost:8090 — созданы топики `movie-events`, `user-events`, `payment-events`; каждый содержит сообщения, плюс внутренний `__consumer_offsets`):
+
+![Kafka UI — topics](docs/task2-kafka-ui-topics.png)
+
 # Задание 3
 
 Команда начала переезд в Kubernetes для лучшего масштабирования и повышения надежности. 
