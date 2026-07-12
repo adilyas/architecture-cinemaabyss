@@ -29,8 +29,6 @@ spec:
         env:
         - name: PORT
           value: "8000"
-        # MONOLITH_URL, MOVIES_SERVICE_URL, EVENTS_SERVICE_URL,
-        # GRADUAL_MIGRATION and MOVIES_MIGRATION_PERCENT come from cinemaabyss-config
         envFrom:
         - configMapRef:
             name: cinemaabyss-config

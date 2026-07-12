@@ -29,7 +29,6 @@ spec:
         env:
         - name: PORT
           value: "8082"
-        # KAFKA_BROKERS is provided by cinemaabyss-config
         envFrom:
         - configMapRef:
             name: cinemaabyss-config
