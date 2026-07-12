@@ -3,10 +3,9 @@ global:
   namespace: cinemaabyss
   domain: cinemaabyss.example.com
 
-# Image pull secrets — public images, so a valid but empty docker config
-# ({"auths":{}}); pulls are anonymous, no credentials required.
+# Image pull secrets
 imagePullSecrets:
-  dockerconfigjson: eyJhdXRocyI6e319
+  dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7ImF1dGgiOiJZV1JwYkhsaGN6cG5hSEJmUzI4MGRrNDJha2RvYzFOck0zRm9ORTVWWWxsbVZXTTNRbk5JVURCaU1uSTFkblZIIn19fQ==
 # Database configuration
 database:
   host: postgres
